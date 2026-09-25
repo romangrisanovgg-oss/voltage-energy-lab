@@ -75,6 +75,3 @@ jobs:
           name: voltage-energy-lab-apk
           path: bin/*.apk
           if-no-files-found: error
-          name: voltage-energy-lab-apk
-          path: bin/*.apk
-          if-no-files-found: error
