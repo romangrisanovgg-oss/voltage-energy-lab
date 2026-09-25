@@ -2,7 +2,8 @@ name: Build Android APK
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
@@ -28,38 +29,53 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            git zip unzip autoconf libtool pkg-config \
-            zlib1g-dev libncurses5-dev libncursesw5-dev \
-            cmake libffi-dev libssl-dev build-essential \
-            ccache libltdl-dev libsqlite3-dev libbz2-dev liblzma-dev
+            curl \
+            git \
+            unzip \
+            zip \
+            autoconf \
+            libtool \
+            pkg-config \
+            zlib1g-dev \
+            libncurses5-dev \
+            libncursesw5-dev \
+            cmake \
+            libffi-dev \
+            libssl-dev \
+            build-essential \
+            ccache \
+            libltdl-dev \
+            libsqlite3-dev \
+            libbz2-dev \
+            liblzma-dev
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install Android SDK packages
+      - name: Install Android SDK
         shell: bash
         run: |
-          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          set -euo pipefail
 
-          if [ -z "$SDK_ROOT" ]; then
-            echo "Android SDK path is not set"
-            exit 1
-          fi
+          SDK_ROOT="$RUNNER_TEMP/android-sdk"
+          TOOLS_DIR="$RUNNER_TEMP/android-tools"
+          TOOLS_ZIP="$RUNNER_TEMP/commandlinetools.zip"
 
-          SDKMANAGER="$(command -v sdkmanager || true)"
+          mkdir -p "$SDK_ROOT/cmdline-tools" "$TOOLS_DIR"
 
-          if [ -z "$SDKMANAGER" ]; then
-            SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager -print -quit 2>/dev/null || true)"
-          fi
+          curl -fsSL \
+            "https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip" \
+            -o "$TOOLS_ZIP"
 
-          if [ -z "$SDKMANAGER" ] || [ ! -x "$SDKMANAGER" ]; then
-            echo "sdkmanager not found under $SDK_ROOT"
-            exit 1
-          fi
+          unzip -q "$TOOLS_ZIP" -d "$TOOLS_DIR"
+          mv "$TOOLS_DIR/cmdline-tools" "$SDK_ROOT/cmdline-tools/latest"
+
+          SDKMANAGER="$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
 
           echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
           echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
           echo "ANDROIDSDK=$SDK_ROOT" >> "$GITHUB_ENV"
+
+          echo "$SDK_ROOT/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+          echo "$SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
+          echo "$SDK_ROOT/build-tools/33.0.2" >> "$GITHUB_PATH"
 
           yes | "$SDKMANAGER" --sdk_root="$SDK_ROOT" --licenses >/dev/null || true
 
@@ -68,12 +84,10 @@ jobs:
             "platforms;android-33" \
             "build-tools;33.0.2"
 
-          echo "$SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
-          echo "$SDK_ROOT/build-tools/33.0.2" >> "$GITHUB_PATH"
-
       - name: Verify Android tools
         shell: bash
         run: |
+          set -euo pipefail
           command -v sdkmanager
           command -v aidl
           aidl --version
