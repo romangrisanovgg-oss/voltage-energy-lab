@@ -12,15 +12,15 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
       - name: Set up Java
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
@@ -29,10 +29,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            curl \
             git \
-            unzip \
             zip \
+            unzip \
             autoconf \
             libtool \
             pkg-config \
@@ -49,58 +48,17 @@ jobs:
             libbz2-dev \
             liblzma-dev
 
-      - name: Install Android SDK
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          SDK_ROOT="$RUNNER_TEMP/android-sdk"
-          TOOLS_DIR="$RUNNER_TEMP/android-tools"
-          TOOLS_ZIP="$RUNNER_TEMP/commandlinetools.zip"
-
-          mkdir -p "$SDK_ROOT/cmdline-tools" "$TOOLS_DIR"
-
-          curl -fsSL \
-            "https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip" \
-            -o "$TOOLS_ZIP"
-
-          unzip -q "$TOOLS_ZIP" -d "$TOOLS_DIR"
-          mv "$TOOLS_DIR/cmdline-tools" "$SDK_ROOT/cmdline-tools/latest"
-
-          SDKMANAGER="$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
-
-          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
-          echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
-          echo "ANDROIDSDK=$SDK_ROOT" >> "$GITHUB_ENV"
-
-          echo "$SDK_ROOT/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
-          echo "$SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
-          echo "$SDK_ROOT/build-tools/33.0.2" >> "$GITHUB_PATH"
-
-          yes | "$SDKMANAGER" --sdk_root="$SDK_ROOT" --licenses >/dev/null || true
-
-          "$SDKMANAGER" --sdk_root="$SDK_ROOT" \
-            "platform-tools" \
-            "platforms;android-33" \
-            "build-tools;33.0.2"
-
-      - name: Verify Android tools
-        shell: bash
-        run: |
-          set -euo pipefail
-          command -v sdkmanager
-          command -v aidl
-          aidl --version
-
-      - name: Install Buildozer
+      - name: Install Buildozer and Cython
         run: |
           python -m pip install --upgrade pip setuptools wheel
           python -m pip install buildozer "cython==0.29.36"
 
       - name: Build APK
-        run: buildozer -v android debug
+        run: |
+          buildozer -v android debug
 
       - name: Upload APK
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: voltage-energy-lab-apk
