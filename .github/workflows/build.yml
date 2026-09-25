@@ -67,8 +67,43 @@ jobs:
           python -m pip install buildozer "cython==0.29.36"
 
       - name: Build APK
-        run: buildozer -v android debug
+        run: buildozer -v android debug 
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
 
+      - name: Install Android SDK packages
+        shell: bash
+        run: |
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+
+          if [ -z "$SDK_ROOT" ]; then
+            echo "Не задан путь Android SDK"
+            exit 1
+          fi
+
+          SDKMANAGER="$(command -v sdkmanager || find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager -print -quit)"
+
+          if [ -z "$SDKMANAGER" ]; then
+            echo "sdkmanager не найден в $SDK_ROOT"
+            exit 1
+          fi
+
+          yes | "$SDKMANAGER" --sdk_root="$SDK_ROOT" --licenses >/dev/null || true
+          "$SDKMANAGER" --sdk_root="$SDK_ROOT" \
+            "platform-tools" \
+            "platforms;android-33" \
+            "build-tools;33.0.2"
+
+          echo "$SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
+          echo "$SDK_ROOT/build-tools/33.0.2" >> "$GITHUB_PATH"
+          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
+
+      - name: Verify Android tools
+        run: |
+          which sdkmanager
+          which aidl
+          aidl --version
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
